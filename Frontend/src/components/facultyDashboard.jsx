@@ -77,6 +77,14 @@ export default function FacultyDashboard() {
     }));
   };
 
+  // Helper: get total approved points for a student in a specific group from already-loaded data
+  // (used for real-time UI hint; backend enforces the hard cap)
+  const getGroupEarned = (studentId, group) => {
+    // We don't have all approved certs loaded in pendingRequests, so we rely on
+    // backend error for the hard block, but we can show a hint if visible in studentCerts
+    return null; // backend is the source of truth
+  };
+
   const submitReview = async (certId, status) => {
     const input = reviewInput[certId] || {};
     // Validation
@@ -93,6 +101,7 @@ export default function FacultyDashboard() {
         remarks: input.remarks || "",
         verifiedBy: faculty.id
       });
+      showToast("Review submitted successfully.", "success");
       // Refresh data after successful review
       fetchData();
       // Clear input
@@ -103,7 +112,9 @@ export default function FacultyDashboard() {
       });
     } catch (err) {
       console.error("Error submitting review:", err);
-      showToast("Failed to submit review.", "error");
+      // Show the backend's specific error message (e.g. group cap exceeded)
+      const msg = err.response?.data?.error || "Failed to submit review.";
+      showToast(msg, "error");
     } finally {
       setSubmittingId(null);
     }
@@ -302,10 +313,18 @@ export default function FacultyDashboard() {
               </div>
             )}
 
+            {/* Group cap info banner */}
+            <div className="bg-blue-50/60 backdrop-blur border border-blue-100/70 shadow-inner rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
+              <Award size={13} className="text-blue-400 flex-shrink-0" />
+              <p className="text-[10px] text-blue-700 font-semibold">
+                <span className="font-bold">{req.group}</span> — max <span className="font-bold">40 points</span> per student. The system will block approval if this student&apos;s group total would exceed 40.
+              </p>
+            </div>
+
             {/* Assign Points + Remarks */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5">Assign Points *</label>
+                <label className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5">Assign Points * <span className="normal-case text-gray-400">(max 40/group)</span></label>
                 <input
                   type="number"
                   placeholder="e.g. 10"
@@ -434,9 +453,9 @@ export default function FacultyDashboard() {
         </div>
 
         <div className="max-w-4xl mx-auto px-6 pb-10">
-          {activeTab === "myclass" && <MyClassesTab />}
-          {activeTab === "requests" && <RequestsTab />}
-          {activeTab === "reports" && <ReportsTab />}
+          {activeTab === "myclass" && MyClassesTab()}
+          {activeTab === "requests" && RequestsTab()}
+          {activeTab === "reports" && ReportsTab()}
         </div>
       </div>
 

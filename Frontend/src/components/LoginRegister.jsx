@@ -5,9 +5,11 @@ import {
   GraduationCap,
   Users,
   ShieldCheck,
+  ShieldOff,
   Eye,
   EyeOff,
   Loader2,
+  X,
 } from "lucide-react";
 
 export default function LoginRegister() {
@@ -20,6 +22,7 @@ export default function LoginRegister() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isLogin, setIsLogin] = useState(true);
+  const [blockedPopup, setBlockedPopup] = useState(false);
 
 
   const initialForm = {
@@ -111,6 +114,12 @@ export default function LoginRegister() {
       const data = await res.json();
 
       if (!res.ok) {
+        // Check for admin-disabled account
+        if (res.status === 403 && data.code === "ACCOUNT_DISABLED") {
+          setBlockedPopup(true);
+          setLoading(false);
+          return;
+        }
         setError(data.message || "Authentication failed");
         setLoading(false);
         return;
@@ -156,7 +165,7 @@ export default function LoginRegister() {
 
   const currentRoleData = roleData[role] || roleData.student;
 
-  return (
+  return (<>
     <div className="min-h-screen flex bg-white lg:bg-gray-50 overflow-hidden">
       {/* Left Panel: Branding & Image (Desktop Only) */}
       <div className="hidden lg:flex lg:w-3/5 relative overflow-hidden bg-gray-900 group">
@@ -385,5 +394,42 @@ export default function LoginRegister() {
         </div>
       </div>
     </div>
-  );
+
+    {/* ===== Blocked by Admin Popup ===== */}
+    {
+      blockedPopup && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm p-4" onClick={() => setBlockedPopup(false)}>
+          <div
+            className="w-full max-w-xs bg-white rounded-2xl shadow-2xl overflow-hidden animate-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="h-1 w-full bg-gradient-to-r from-red-400 via-red-500 to-rose-500" />
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                  <ShieldOff size={20} className="text-red-500" />
+                </div>
+                <button
+                  onClick={() => setBlockedPopup(false)}
+                  className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <h3 className="text-sm font-bold text-gray-900 mb-1">Account Restricted</h3>
+              <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                Your account has been disabled by the administrator. Please contact your institution admin for assistance.
+              </p>
+              <button
+                onClick={() => setBlockedPopup(false)}
+                className="mt-5 w-full py-2.5 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-700 transition"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+  </>);
 }

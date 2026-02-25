@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Upload, X, FileImage, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, X, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import axios from "../api/axios";
 
 const groupCategories = {
@@ -37,14 +37,14 @@ export default function CertificateUploadModal({ isOpen, onClose, groupName, onU
     const handleFileChange = (e) => {
         const selected = e.target.files[0];
         if (selected) {
-            setFile(selected);
-            if (selected.type.startsWith("image/")) {
-                const reader = new FileReader();
-                reader.onload = (ev) => setPreview(ev.target.result);
-                reader.readAsDataURL(selected);
-            } else {
-                setPreview(null);
+            // Enforce PDF only
+            if (selected.type !== "application/pdf" && !selected.name.toLowerCase().endsWith(".pdf")) {
+                setError("Only PDF files are allowed. Please upload a valid certificate PDF.");
+                e.target.value = "";
+                return;
             }
+            setError("");
+            setFile(selected);
         }
     };
 
@@ -167,31 +167,27 @@ export default function CertificateUploadModal({ isOpen, onClose, groupName, onU
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Certificate File</label>
+                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Certificate File <span className="normal-case text-red-500 font-semibold">(PDF only)</span></label>
                             {!file ? (
                                 <label className="flex flex-col items-center justify-center w-full h-32 clay-card border-dashed border-2 border-gray-300 cursor-pointer hover:border-blue-400 transition-colors">
                                     <div className="p-3 bg-white/50 rounded-full mb-2 shadow-sm">
-                                        <FileImage className="text-blue-500" size={24} />
+                                        <FileText className="text-blue-500" size={24} />
                                     </div>
-                                    <span className="text-sm font-bold text-gray-700">Click to upload</span>
-                                    <span className="text-xs text-gray-500 mt-1">PDF, JPG, PNG (Max 5MB)</span>
-                                    <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFileChange} className="hidden" required disabled={submitting} />
+                                    <span className="text-sm font-bold text-gray-700">Click to upload PDF</span>
+                                    <span className="text-xs text-gray-500 mt-1">PDF only · Max 5MB</span>
+                                    <input type="file" accept=".pdf,application/pdf" onChange={handleFileChange} className="hidden" required disabled={submitting} />
                                 </label>
                             ) : (
                                 <div className="flex items-center gap-4 bg-white/60 border border-white/80 shadow-inner rounded-2xl p-4">
-                                    {preview ? (
-                                        <img src={preview} alt="Preview" className="w-14 h-14 rounded-xl object-cover shadow-sm" />
-                                    ) : (
-                                        <div className="w-14 h-14 bg-white/80 rounded-xl flex items-center justify-center shadow-sm">
-                                            <FileImage className="text-gray-400" size={24} />
-                                        </div>
-                                    )}
+                                    <div className="w-14 h-14 bg-red-50 rounded-xl flex items-center justify-center shadow-sm">
+                                        <FileText className="text-red-400" size={24} />
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-bold text-gray-800 truncate">{file.name}</p>
-                                        <p className="text-xs font-medium text-gray-500 mt-0.5">{(file.size / 1024).toFixed(1)} KB</p>
+                                        <p className="text-xs font-medium text-gray-500 mt-0.5">{(file.size / 1024).toFixed(1)} KB · PDF</p>
                                     </div>
                                     {!submitting && (
-                                        <button type="button" onClick={() => { setFile(null); setPreview(null); }} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/80 text-gray-400 hover:text-red-500 hover:bg-red-50 transition shadow-sm">
+                                        <button type="button" onClick={() => { setFile(null); setError(""); }} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/80 text-gray-400 hover:text-red-500 hover:bg-red-50 transition shadow-sm">
                                             <X size={16} />
                                         </button>
                                     )}

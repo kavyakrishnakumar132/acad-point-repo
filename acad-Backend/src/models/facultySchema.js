@@ -29,6 +29,12 @@ const facultySchema = new mongoose.Schema(
       default: "faculty",
       immutable: true,
     },
+
+    status: {
+      type: String,
+      enum: ["Active", "Disabled"],
+      default: "Active",
+    },
   },
   {
     timestamps: true,

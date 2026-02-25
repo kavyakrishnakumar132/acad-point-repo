@@ -17,7 +17,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <ToastProvider>
       <Routes>
         <Route path="/" element={<LoginRegister />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminLogin />} />
 
         <Route path="/student-dashboard" element={
           <ProtectedRoute allowedRoles={["student"]}>

@@ -71,15 +71,25 @@ router.get("/dashboard-stats", async (req, res) => {
     }
 });
 
-// 4. Update user status (Active/Deactivated)
-// Requires a 'status' field in schema, defaulting to 'Active'
-// We might not have that yet, so let's just update role or a new field if added
+// 4. Toggle user status (Active ↔ Disabled) — Admin only
 router.put("/:id/status", async (req, res) => {
     try {
-        // If you add a status field to the schema, you'd update it here:
-        // await Student.findByIdAndUpdate(req.params.id, { status: req.body.status });
-        res.status(200).json({ message: "Status updating not fully implemented without schema update" });
+        const { status } = req.body; // "Active" or "Disabled"
+        if (!["Active", "Disabled"].includes(status)) {
+            return res.status(400).json({ error: "Invalid status value" });
+        }
+
+        // Try Student first, then Faculty
+        let updated = await Student.findByIdAndUpdate(req.params.id, { status }, { new: true });
+        if (!updated) {
+            updated = await Faculty.findByIdAndUpdate(req.params.id, { status }, { new: true });
+        }
+
+        if (!updated) return res.status(404).json({ error: "User not found" });
+
+        res.status(200).json({ message: `User status updated to ${status}`, user: updated });
     } catch (error) {
+        console.error("Error updating status:", error);
         res.status(500).json({ error: "Internal server error" });
     }
 });

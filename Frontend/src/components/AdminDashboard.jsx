@@ -26,6 +26,7 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ totalStudents: 0, totalTeachers: 0, departments: 0, pendingApprovals: 0, verificationStats: { total: 0, approved: 0, pending: 0, rejected: 0 } });
     const [allUsers, setAllUsers] = useState([]);
+    const [togglingId, setTogglingId] = useState(null);
 
     const handleLogout = () => { sessionStorage.removeItem("user"); navigate("/"); };
 
@@ -44,7 +45,7 @@ export default function AdminDashboard() {
                 name: s.name,
                 type: "Student",
                 regNo: s.registerNumber,
-                department: `Semester ${s.semester}`, // Fallback since students may not have department in simple schema
+                department: `${s.department} (S${s.semester})`,
                 status: s.status || "Active",
                 points: s.points || 0
             }));
@@ -66,6 +67,19 @@ export default function AdminDashboard() {
             setLoading(false);
         }
     }, []);
+
+    const toggleStatus = async (userId, currentStatus) => {
+        const newStatus = currentStatus === "Active" ? "Disabled" : "Active";
+        setTogglingId(userId);
+        try {
+            await axios.put(`/users/${userId}/status`, { status: newStatus });
+            setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, status: newStatus } : u));
+        } catch (err) {
+            console.error("Failed to toggle status:", err);
+        } finally {
+            setTogglingId(null);
+        }
+    };
 
     useEffect(() => {
         fetchData();
@@ -217,9 +231,22 @@ export default function AdminDashboard() {
                                 <td className="text-center"><span className={`text-[10px] font-bold px-2 py-1 rounded-md shadow-inner border border-white/60 ${u.status === "Active" ? "bg-green-100/50 text-green-700" : "bg-gray-200/50 text-gray-500"}`}>{u.status}</span></td>
                                 <td className="text-center">
                                     <div className="flex items-center justify-center gap-1.5">
-                                        <button className="w-7 h-7 rounded-lg bg-white/50 border border-white/60 shadow-inner flex items-center justify-center text-gray-500 hover:text-gray-900 transition"><Pencil size={14} /></button>
-                                        <button className={`w-7 h-7 rounded-lg bg-white/50 border border-white/60 shadow-inner flex items-center justify-center transition ${u.status === "Active" ? "text-red-400 hover:text-red-600" : "text-green-500 hover:text-green-700"}`}>
-                                            {u.status === "Active" ? <UserMinus size={14} /> : <CheckCircle size={14} />}
+                                        <button
+                                            onClick={() => toggleStatus(u.id, u.status)}
+                                            disabled={togglingId === u.id}
+                                            title={u.status === "Active" ? "Disable user" : "Enable user"}
+                                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold border shadow-inner transition disabled:opacity-50 ${u.status === "Active"
+                                                ? "bg-red-50/60 border-red-100 text-red-600 hover:bg-red-100/60"
+                                                : "bg-green-50/60 border-green-100 text-green-600 hover:bg-green-100/60"
+                                                }`}
+                                        >
+                                            {togglingId === u.id ? (
+                                                <Loader2 size={12} className="animate-spin" />
+                                            ) : u.status === "Active" ? (
+                                                <><UserMinus size={12} /> Disable</>
+                                            ) : (
+                                                <><CheckCircle size={12} /> Enable</>
+                                            )}
                                         </button>
                                     </div>
                                 </td>
@@ -381,11 +408,11 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="max-w-5xl mx-auto px-6 pb-10">
-                    {activeTab === "overview" && <OverviewTab />}
-                    {activeTab === "users" && <UsersTab />}
-                    {activeTab === "rules" && <RulesTab />}
-                    {activeTab === "verification" && <VerificationTab />}
-                    {activeTab === "audit" && <AuditTab />}
+                    {activeTab === "overview" && OverviewTab()}
+                    {activeTab === "users" && UsersTab()}
+                    {activeTab === "rules" && RulesTab()}
+                    {activeTab === "verification" && VerificationTab()}
+                    {activeTab === "audit" && AuditTab()}
                 </div>
             </div>
         </div>

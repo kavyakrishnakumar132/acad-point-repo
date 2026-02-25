@@ -35,10 +35,19 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid password" });
     }
 
+    // Check if account is disabled by admin
+    if (user.status === "Disabled") {
+      return res.status(403).json({
+        message: "Your account has been disabled by the administrator.",
+        code: "ACCOUNT_DISABLED"
+      });
+    }
+
     res.json({
       message: "Login successful",
       user: {
         id: user._id,
+        _id: user._id,
         name: user.name || user.username,
         role: user.role,
         semester: user.semester || null,

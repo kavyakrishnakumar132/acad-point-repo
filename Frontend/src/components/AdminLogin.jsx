@@ -1,27 +1,13 @@
 import { useState } from "react";
-import { useToast } from "../context/ToastContext";
 import { useNavigate } from "react-router-dom";
-import { ShieldCheck, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ShieldCheck, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 
 export default function AdminLogin() {
-    const { showToast } = useToast();
     const navigate = useNavigate();
-
-    const [mode, setMode] = useState("login");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-
-    const initialForm = {
-        adminName: "",
-        department: "",
-        institution: "",
-        password: "",
-    };
-
-    const [form, setForm] = useState(initialForm);
-
-    const resetForm = () => setForm(initialForm);
+    const [form, setForm] = useState({ adminName: "", password: "" });
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -34,25 +20,10 @@ export default function AdminLogin() {
         setError("");
 
         try {
-            let endpoint, payload;
-
-            if (mode === "login") {
-                endpoint = "http://localhost:5000/auth/login";
-                payload = { role: "admin", id: form.adminName, password: form.password };
-            } else {
-                endpoint = "http://localhost:5000/auth/admin/register";
-                payload = {
-                    username: form.adminName,
-                    department: form.department,
-                    institution: form.institution,
-                    password: form.password,
-                };
-            }
-
-            const res = await fetch(endpoint, {
+            const res = await fetch("http://localhost:5000/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ role: "admin", id: form.adminName, password: form.password }),
             });
 
             const data = await res.json();
@@ -62,12 +33,6 @@ export default function AdminLogin() {
                 setLoading(false);
                 return;
             }
-
-            setMode("login");
-            resetForm();
-            setLoading(false);
-            showToast("Admin registered successfully! Please login.", "success");
-            return;
 
             sessionStorage.setItem("user", JSON.stringify(data.user));
             navigate("/admin-dashboard");
@@ -84,55 +49,28 @@ export default function AdminLogin() {
             <div className="w-full max-w-sm animate-in">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <h1 className="text-xl font-semibold text-gray-900 tracking-tight">AcadPoint</h1>
-                    <p className="text-sm text-gray-400 mt-1">Activity Point Management</p>
+                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-900 shadow-xl mb-4">
+                        <ShieldCheck size={26} className="text-white" />
+                    </div>
+                    <h1 className="text-xl font-bold text-gray-900 tracking-tight">AcadPoint</h1>
+                    <p className="text-sm text-gray-400 mt-1 font-medium">Admin Portal</p>
                 </div>
 
                 {/* Card */}
                 <div className="liquid-glass rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-50"></div>
+                    <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-60"></div>
 
-                    {/* Title */}
-                    <div className="flex items-center gap-2 mb-1">
-                        <ShieldCheck size={20} className="text-gray-700" />
-                        <h2 className="text-xl font-bold text-gray-900">
-                            {mode === "login" ? "Admin Sign In" : "Admin Registration"}
-                        </h2>
-                    </div>
-                    <p className="text-sm text-gray-500 mb-6 font-medium">Restricted Access</p>
+                    <h2 className="text-base font-bold text-gray-900 mb-0.5">Administrator Sign In</h2>
+                    <p className="text-xs text-gray-400 font-medium mb-5">Restricted access — authorised personnel only</p>
 
                     {/* Error */}
                     {error && (
-                        <div className="mb-4 px-3 py-2 bg-red-50 border border-red-100 rounded-lg text-red-600 text-xs">
-                            {error}
+                        <div className="mb-4 px-3 py-2.5 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-medium flex items-center gap-2">
+                            <Lock size={13} /> {error}
                         </div>
                     )}
 
-                    {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-3" autoComplete="off">
-                        {mode === "register" && (
-                            <>
-                                <input
-                                    name="department"
-                                    placeholder="Department"
-                                    value={form.department}
-                                    className="w-full clay-input"
-                                    onChange={handleChange}
-                                    autoComplete="off"
-                                    required
-                                />
-                                <input
-                                    name="institution"
-                                    placeholder="Institution"
-                                    value={form.institution}
-                                    className="w-full clay-input"
-                                    onChange={handleChange}
-                                    autoComplete="off"
-                                    required
-                                />
-                            </>
-                        )}
-
                         <input
                             name="adminName"
                             placeholder="Admin Username"
@@ -151,34 +89,29 @@ export default function AdminLogin() {
                                 value={form.password}
                                 className="w-full clay-input pr-10"
                                 onChange={handleChange}
-                                autoComplete="new-password"
+                                autoComplete="current-password"
                                 required
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition"
                             >
                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
                         </div>
 
                         <button
+                            type="submit"
                             disabled={loading}
-                            className="w-full clay-btn-dark py-3 text-sm flex items-center justify-center gap-2 mt-2"
+                            className="w-full clay-btn-dark py-3 text-sm flex items-center justify-center gap-2 mt-2 disabled:opacity-70"
                         >
-                            {loading ? <><Loader2 size={16} className="animate-spin" /> Processing...</> : mode === "login" ? "Sign In" : "Register Admin"}
+                            {loading ? <><Loader2 size={16} className="animate-spin" /> Signing in...</> : "Sign In"}
                         </button>
                     </form>
 
-                    <p className="text-center text-xs text-gray-400 mt-4">
-                        {mode === "login" ? "New admin?" : "Already registered?"}
-                        <button
-                            onClick={() => { setMode(mode === "login" ? "register" : "login"); resetForm(); setError(""); }}
-                            className="ml-1 text-gray-900 font-medium hover:underline"
-                        >
-                            {mode === "login" ? "Register" : "Sign In"}
-                        </button>
+                    <p className="text-center text-[10px] text-gray-400 mt-5 font-medium tracking-wide uppercase">
+                        This portal is for administrators only
                     </p>
                 </div>
             </div>

@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Certificate from "../models/certificateSchema.js";
 import Student from "../models/studentSchema.js";
+import Faculty from "../models/facultySchema.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,12 +26,12 @@ const upload = multer({
     storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
     fileFilter: (req, file, cb) => {
-        const allowed = [".jpg", ".jpeg", ".png", ".pdf"];
         const ext = path.extname(file.originalname).toLowerCase();
-        if (allowed.includes(ext)) {
+        const mime = file.mimetype;
+        if (ext === ".pdf" && mime === "application/pdf") {
             cb(null, true);
         } else {
-            cb(new Error("Only JPG, PNG, and PDF files are allowed"));
+            cb(new Error("Only PDF files are allowed. Screenshots and images are not accepted."));
         }
     },
 });
@@ -42,6 +43,12 @@ router.post("/submit", upload.single("certificateFile"), async (req, res) => {
 
         if (!req.file) {
             return res.status(400).json({ error: "Certificate file is required" });
+        }
+
+        // Check student status
+        const student = await Student.findById(studentId);
+        if (!student || student.status === "Disabled") {
+            return res.status(403).json({ error: "Account is disabled. Cannot submit certificates." });
         }
 
         const newCert = new Certificate({
@@ -90,13 +97,48 @@ router.put("/review/:id", async (req, res) => {
     try {
         const { status, points, remarks, verifiedBy } = req.body;
 
+        // Find the certificate being reviewed
+        const cert = await Certificate.findById(req.params.id);
+        if (!cert) return res.status(404).json({ error: "Certificate not found" });
+
+        // Check faculty status
+        const faculty = await Faculty.findById(verifiedBy);
+        if (!faculty || faculty.status === "Disabled") {
+            return res.status(403).json({ error: "Account is disabled. Cannot review certificates." });
+        }
+
+        // If approving, enforce the 40-point cap per student per group
+        if (status === "Approved") {
+            const assignedPoints = Number(points);
+
+            if (!assignedPoints || assignedPoints < 1 || assignedPoints > 40) {
+                return res.status(400).json({ error: "Points must be between 1 and 40." });
+            }
+
+            // Sum all already-approved points for this student in the same group (excluding this cert)
+            const existingApproved = await Certificate.find({
+                studentId: cert.studentId,
+                group: cert.group,
+                status: "Approved",
+                _id: { $ne: cert._id }
+            });
+
+            const alreadyEarned = existingApproved.reduce((sum, c) => sum + (c.points || 0), 0);
+            const GROUP_MAX = 40;
+
+            if (alreadyEarned + assignedPoints > GROUP_MAX) {
+                const remaining = GROUP_MAX - alreadyEarned;
+                return res.status(400).json({
+                    error: `Cannot exceed ${GROUP_MAX} points for ${cert.group}. Student has already earned ${alreadyEarned} points in this group. You can assign at most ${remaining} more point(s).`
+                });
+            }
+        }
+
         const updatedCert = await Certificate.findByIdAndUpdate(
             req.params.id,
-            { status, points, remarks, verifiedBy },
+            { status, points: status === "Approved" ? Number(points) : null, remarks, verifiedBy },
             { new: true }
         );
-
-        if (!updatedCert) return res.status(404).json({ error: "Certificate not found" });
 
         res.status(200).json({ message: "Certificate reviewed successfully", certificate: updatedCert });
     } catch (error) {
