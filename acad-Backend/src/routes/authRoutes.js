@@ -19,7 +19,7 @@ router.post("/login", async (req, res) => {
     let user;
 
     if (role === "student") {
-      user = await Student.findOne({ registerNumber: id });
+      user = await Student.findOne({ registerNumber: id }).populate("tutorId", "name");
     } else if (role === "faculty") {
       user = await Faculty.findOne({ facultyId: id });
     } else if (role === "admin") {
@@ -56,6 +56,8 @@ router.post("/login", async (req, res) => {
         department: user.department || null,
         institution: user.institution || null,
         registerNumber: user.registerNumber || null,
+        tutorId: user.tutorId ? user.tutorId._id : null,
+        tutorName: user.tutorId ? user.tutorId.name : null,
       },
     });
   } catch (err) {

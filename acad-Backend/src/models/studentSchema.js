@@ -9,6 +9,7 @@ const studentSchema = new mongoose.Schema({
   password: String,
   role: { type: String, default: "student" },
   status: { type: String, enum: ["Active", "Disabled"], default: "Active" },
+  tutorId: { type: mongoose.Schema.Types.ObjectId, ref: "Faculty" },
   resetPasswordToken: String,
   resetPasswordExpires: Date,
 });

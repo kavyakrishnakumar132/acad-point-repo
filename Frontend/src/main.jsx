@@ -7,8 +7,8 @@ import StudentDashboard from "./components/StudentDashboard";
 import FacultyDashboard from "./components/facultyDashboard";
 import AdminDashboard from "./components/AdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
-import ForgotPassword from "./components/forgotPassword";
-import ResetPassword from "./components/resetPassword";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import { ToastProvider } from "./context/ToastContext";
 import "./index.css";
 
@@ -19,8 +19,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/" element={<LoginRegister />} />
         <Route path="/admin" element={<AdminLogin />} />
 
-        {/* ✅ Forgot & Reset Password */}
-        <Route path="/forgot-password/:role" element={<ForgotPassword />} />
+        
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:role/:token" element={<ResetPassword />} />
 
         <Route path="/student-dashboard" element={

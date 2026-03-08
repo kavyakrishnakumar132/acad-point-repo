@@ -158,36 +158,51 @@ export default function StudentDashboard() {
       </div>
 
       {/* Group cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-4">
         {[
           { key: "groupI", label: "Group I", sub: "Co-curricular", tab: "group1" },
           { key: "groupII", label: "Group II", sub: "Skills", tab: "group2" },
           { key: "groupIII", label: "Group III", sub: "Research", tab: "group3" },
         ].map(({ key, label, sub, tab }) => {
           const g = student.groups[key];
+          const cappedEarned = Math.min(g.earned, g.max);
+          const groupPercentage = Math.round((cappedEarned / g.max) * 33.33 * 10) / 10;
+
           return (
             <button
               key={key}
               onClick={() => setActiveTab(tab)}
-              className="text-left clay-card p-4 group"
+              className="text-left clay-card p-5 group flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-bold text-gray-900">{label}</p>
-                <div className="w-6 h-6 rounded-full bg-white/50 shadow-inner flex items-center justify-center group-hover:bg-white transition">
-                  <ChevronRight size={14} className="text-gray-400 group-hover:text-gray-700" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-lg font-bold text-gray-900">{label}</p>
+                  <div className="w-5 h-5 rounded-full bg-white/50 shadow-inner flex items-center justify-center group-hover:bg-white transition">
+                    <ChevronRight size={12} className="text-gray-400 group-hover:text-gray-700" />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 font-medium mb-3 md:mb-0">{sub}</p>
+              </div>
+
+              <div className="flex-1 w-full md:px-6">
+                <div className="flex justify-between items-end mb-2">
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Group Progress</p>
+                  <p className="text-sm font-bold text-gray-900">{groupPercentage}% <span className="text-[10px] text-gray-400 font-medium normal-case">of 33.3% total contribution</span></p>
+                </div>
+                <div className="w-full h-2 bg-gray-200 shadow-inner rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-gray-700 to-gray-900 rounded-full" style={{ width: `${Math.min((g.earned / g.max) * 100, 100)}%` }}></div>
                 </div>
               </div>
-              <p className="text-[10px] text-gray-500 font-medium mb-3">{sub}</p>
-              <p className="text-2xl font-bold text-gray-900">{g.earned}<span className="text-sm text-gray-400 font-medium">/{g.max}</span></p>
-              <div className="w-full h-1.5 bg-gray-200 shadow-inner rounded-full overflow-hidden mt-3">
-                <div className="h-full bg-gradient-to-r from-gray-700 to-gray-900 rounded-full" style={{ width: `${Math.min((g.earned / g.max) * 100, 100)}%` }}></div>
+
+              <div className="flex flex-col items-end min-w-[100px]">
+                <p className="text-3xl font-bold text-gray-900">{g.earned}<span className="text-sm text-gray-400 font-medium">/{g.max}</span></p>
+                {g.pending > 0 && (
+                  <div className="mt-1 bg-amber-50 shadow-inner rounded-md py-1 px-2 mb-0 inline-flex items-center justify-center gap-1 border border-amber-100">
+                    <Clock size={10} className="text-amber-500" />
+                    <span className="text-[10px] text-amber-600 font-bold">{g.pending} pending</span>
+                  </div>
+                )}
               </div>
-              {g.pending > 0 && (
-                <div className="mt-3 bg-white/40 shadow-inner rounded-md py-1 px-2 inline-flex items-center gap-1 border border-white/50">
-                  <Clock size={10} className="text-amber-500" />
-                  <span className="text-[10px] text-amber-600 font-semibold">{g.pending} pending</span>
-                </div>
-              )}
             </button>
           );
         })}
