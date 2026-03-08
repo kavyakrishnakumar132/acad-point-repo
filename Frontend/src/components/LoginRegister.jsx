@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useToast } from "../context/ToastContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
 import {
   GraduationCap,
@@ -240,7 +240,7 @@ export default function LoginRegister() {
         {[...Array(totalSteps)].map((_, i) => (
           <div
             key={i}
-            className={`h-1.5 rounded-full transition-all duration-300 ${step > i + 1 ? "w-8 bg-blue-500" : step === i + 1 ? "w-8 bg-blue-600" : "w-4 bg-gray-200"
+            className={`h-1.5 rounded-full transition-all duration-300 ${step > i + 1 ? "w-8 bg-gray-500" : step === i + 1 ? "w-8 bg-black outline outline-2 outline-black" : "w-4 bg-gray-200"
               }`}
           />
         ))}
@@ -278,7 +278,7 @@ export default function LoginRegister() {
               <div className="flex flex-wrap gap-3">
                 {currentRoleData.badges.map((badge, idx) => (
                   <div key={idx} className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-sm font-semibold flex items-center gap-2">
-                    <ShieldCheck size={16} className="text-blue-400" />
+                    <ShieldCheck size={16} className="text-black" />
                     {badge}
                   </div>
                 ))}
@@ -307,7 +307,7 @@ export default function LoginRegister() {
 
             {/* Card */}
             <div className="liquid-glass rounded-3xl p-8 shadow-2xl relative overflow-hidden border border-white/40">
-              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-80"></div>
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-gray-400 via-gray-700 to-black opacity-80"></div>
 
               <div className="flex justify-between items-center mb-6 relative z-10">
                 <div>
@@ -319,7 +319,7 @@ export default function LoginRegister() {
                   </p>
                 </div>
                 {mode === "register" && (
-                  <div className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                  <div className="text-xs font-bold text-black bg-gray-50 px-2.5 py-1 rounded-full border border-gray-200">
                     Step {step} of {totalSteps}
                   </div>
                 )}
@@ -333,7 +333,7 @@ export default function LoginRegister() {
                       key={key}
                       onClick={() => { setRole(key); resetForm(); setError(""); }}
                       className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${role === key
-                        ? "bg-white text-blue-600 shadow-md transform scale-[1.02]"
+                        ? "bg-white text-black shadow-md transform scale-[1.02] border border-gray-100"
                         : "text-gray-500 hover:bg-white/50"
                         }`}
                     >
@@ -587,7 +587,7 @@ export default function LoginRegister() {
                   {mode === "login" ? "Don't have an account?" : "Already have an account?"}
                   <button
                     onClick={() => { setMode(mode === "login" ? "register" : "login"); resetForm(); setError(""); }}
-                    className="ml-2 text-blue-600 font-bold hover:text-blue-700 hover:underline transition-all"
+                    className="ml-2 text-black font-bold hover:text-gray-700 hover:underline transition-all"
                   >
                     {mode === "login" ? "Get Started" : "Sign In"}
                   </button>
@@ -595,12 +595,12 @@ export default function LoginRegister() {
 
                 {mode === "login" && (
                   <p>
-                    <a
-                      href={`/forgot-password/${role}`}
+                    <Link
+                      to={`/forgot-password/${role}`}
                       className="text-xs text-gray-400 hover:text-gray-900 font-bold tracking-wide uppercase transition-colors"
                     >
                       Forgot Your Password?
-                    </a>
+                    </Link>
                   </p>
                 )}
               </div>

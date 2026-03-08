@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoginRegister from "./components/LoginRegister";
 import AdminLogin from "./components/AdminLogin";
 import StudentDashboard from "./components/StudentDashboard";
-import FacultyDashboard from "./components/facultyDashboard";
+import FacultyDashboard from "./components/FacultyDashboard";
 import AdminDashboard from "./components/AdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ForgotPassword from "./components/ForgotPassword";
@@ -17,10 +17,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <ToastProvider>
       <Routes>
         <Route path="/" element={<LoginRegister />} />
+        <Route path="/login" element={<LoginRegister />} />
         <Route path="/admin" element={<AdminLogin />} />
 
-        
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+
+        <Route path="/forgot-password/:userRole?" element={<ForgotPassword />} />
         <Route path="/reset-password/:role/:token" element={<ResetPassword />} />
 
         <Route path="/student-dashboard" element={
