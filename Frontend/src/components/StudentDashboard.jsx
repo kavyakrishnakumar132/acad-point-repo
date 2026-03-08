@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   User, Users, Upload, Award, LogOut, FileText,
-  CheckCircle, Clock, AlertCircle, BarChart3, ChevronRight, ChevronLeft, Loader2
+  CheckCircle, Clock, AlertCircle, BarChart3, ChevronRight, ChevronLeft, Loader2, Download
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import CertificateUploadModal from "./CertificateUploadModal";
 import axios from "../api/axios";
 
@@ -106,6 +108,96 @@ export default function StudentDashboard() {
         <Icon size={10} /> {status}
       </span>
     );
+  };
+
+  const generateReport = () => {
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(31, 41, 55); // gray-800
+    doc.text("AcadPoint - Student Activity Report", 14, 22);
+
+    // Subheader / Student Details
+    doc.setFontSize(11);
+    doc.setTextColor(107, 114, 128); // gray-500
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+
+    doc.setFontSize(12);
+    doc.setTextColor(31, 41, 55);
+    doc.text(`Name: ${student.name}`, 14, 42);
+    doc.text(`Register Number: ${student.regNo}`, 14, 48);
+    doc.text(`Semester: ${student.semester} (${student.semType})`, 14, 54);
+    if (user.tutorName) {
+      doc.text(`Tutor: ${user.tutorName}`, 14, 60);
+    }
+
+    // Overall Progress Summary
+    doc.setFont("helvetica", "bold");
+    doc.text("Overall Progress", 14, 72);
+    doc.setFont("helvetica", "normal");
+
+    const progressData = [
+      ["Total Points Earned", student.earned.toString()],
+      ["Capped Points (Max 120)", student.capped.toString()],
+      ["Points Required", student.required.toString()],
+      ["Completion Percentage", `${student.pct}%`]
+    ];
+
+    autoTable(doc, {
+      startY: 76,
+      body: progressData,
+      theme: 'grid',
+      headStyles: { fillColor: [31, 41, 55] },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 80 } },
+      margin: { left: 14 }
+    });
+
+    let finalY = doc.lastAutoTable.finalY + 12 || 120;
+
+    // Group Summary
+    doc.setFont("helvetica", "bold");
+    doc.text("Group summary", 14, finalY);
+
+    const groupData = [
+      ["Group I", "Co-curricular", student.groups.groupI.earned, Math.min(student.groups.groupI.earned, 40)],
+      ["Group II", "Skills", student.groups.groupII.earned, Math.min(student.groups.groupII.earned, 40)],
+      ["Group III", "Research", student.groups.groupIII.earned, Math.min(student.groups.groupIII.earned, 40)],
+    ];
+
+    autoTable(doc, {
+      startY: finalY + 4,
+      head: [['Group', 'Type', 'Total Earned', 'Capped (Max 40)']],
+      body: groupData,
+      theme: 'grid',
+      headStyles: { fillColor: [55, 65, 81] }
+    });
+
+    finalY = doc.lastAutoTable.finalY + 12;
+
+    // Certificate Details
+    const allCerts = [
+      ...certificates.groupI.map(c => [c.certificateName, c.activityType, 'Group I', c.status, c.points !== null ? c.points : '-']),
+      ...certificates.groupII.map(c => [c.certificateName, c.activityType, 'Group II', c.status, c.points !== null ? c.points : '-']),
+      ...certificates.groupIII.map(c => [c.certificateName, c.activityType, 'Group III', c.status, c.points !== null ? c.points : '-'])
+    ];
+
+    if (allCerts.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Certificate Details", 14, finalY);
+
+      autoTable(doc, {
+        startY: finalY + 4,
+        head: [['Certificate Name', 'Activity Type', 'Group', 'Status', 'Points']],
+        body: allCerts,
+        theme: 'striped',
+        headStyles: { fillColor: [55, 65, 81] }
+      });
+    }
+
+    doc.save(`${student.regNo}_Activity_Report.pdf`);
   };
 
   /* ===== Profile ===== */
@@ -343,19 +435,22 @@ export default function StudentDashboard() {
         </div>
 
         <nav className="flex-1 px-3 py-3 space-y-0.5">
-          {tabs.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm transition-all focus:outline-none ${activeTab === key
-                ? "bg-white/50 text-gray-900 font-bold shadow-inner border border-white/60"
-                : "text-gray-600 hover:bg-white/30 font-medium"
-                }`}
-            >
-              <Icon size={18} className={activeTab === key ? "text-gray-900" : "text-gray-500"} />
-              {label}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm transition-all focus:outline-none ${activeTab === tab.key
+                  ? "bg-white/50 text-gray-900 font-bold shadow-inner border border-white/60"
+                  : "text-gray-600 hover:bg-white/30 font-medium"
+                  }`}
+              >
+                <Icon size={18} className={activeTab === tab.key ? "text-gray-900" : "text-gray-500"} />
+                {tab.label}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="px-4 py-4 border-t border-white/30 bg-white/10 backdrop-blur-sm">
@@ -388,6 +483,16 @@ export default function StudentDashboard() {
               {activeTab === "group2" && "Group II — Skills"}
               {activeTab === "group3" && "Group III — Research"}
             </h1>
+          </div>
+          <div className="flex items-center gap-4">
+            {activeTab === "profile" && (
+              <button
+                onClick={generateReport}
+                className="clay-btn-dark px-4 py-2 text-sm flex items-center gap-2"
+              >
+                <Download size={16} /> Download Report
+              </button>
+            )}
           </div>
         </div>
 

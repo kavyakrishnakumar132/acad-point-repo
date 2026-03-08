@@ -3,8 +3,10 @@ import { useToast } from "../context/ToastContext";
 import { useNavigate } from "react-router-dom";
 import {
   LogOut, CheckCircle, XCircle, Search, FileText, Users,
-  Clock, AlertTriangle, Eye, Bell, Award, X, BarChart3, Loader2
+  Clock, AlertTriangle, Eye, Bell, Award, X, BarChart3, Loader2, Download
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import axios from "../api/axios";
 
 export default function FacultyDashboard() {
@@ -51,7 +53,7 @@ export default function FacultyDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [faculty.department, faculty.id]);
 
   useEffect(() => {
     fetchData();
@@ -77,13 +79,7 @@ export default function FacultyDashboard() {
     }));
   };
 
-  // Helper: get total approved points for a student in a specific group from already-loaded data
-  // (used for real-time UI hint; backend enforces the hard cap)
-  const getGroupEarned = (studentId, group) => {
-    // We don't have all approved certs loaded in pendingRequests, so we rely on
-    // backend error for the hard block, but we can show a hint if visible in studentCerts
-    return null; // backend is the source of truth
-  };
+
 
   const submitReview = async (certId, status) => {
     const input = reviewInput[certId] || {};
@@ -161,6 +157,114 @@ export default function FacultyDashboard() {
     { key: "reports", label: "Reports", icon: BarChart3 },
   ];
 
+  const generateStudentReport = (student, certs) => {
+    const doc = new jsPDF();
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(31, 41, 55);
+    doc.text("AcadPoint - Student Activity Report", 14, 22);
+
+    doc.setFontSize(11);
+    doc.setTextColor(107, 114, 128);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+
+    doc.setFontSize(12);
+    doc.setTextColor(31, 41, 55);
+    doc.text(`Name: ${student.name}`, 14, 42);
+    doc.text(`Register Number: ${student.regNo}`, 14, 48);
+    doc.text(`Semester: ${student.semester || 'N/A'}`, 14, 54);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Overall Progress", 14, 66);
+    doc.setFont("helvetica", "normal");
+
+    const progressData = [
+      ["Total Points Earned", student.total?.toString() || "0"],
+      ["Capped Points (Max 120)", student.capped?.toString() || "0"],
+      ["Completion Percentage", `${Math.min(((student.capped || 0) / 120) * 100, 100).toFixed(1)}%`]
+    ];
+
+    autoTable(doc, {
+      startY: 70,
+      body: progressData,
+      theme: 'grid',
+      headStyles: { fillColor: [31, 41, 55] },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 80 } },
+      margin: { left: 14 }
+    });
+
+    let finalY = doc.lastAutoTable.finalY + 12 || 110;
+
+    const allCerts = certs.map(c => [
+      c.certificateName,
+      c.activityType,
+      c.group,
+      c.status,
+      c.points !== null ? c.points : '-'
+    ]);
+
+    if (allCerts.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Certificate Details", 14, finalY);
+
+      autoTable(doc, {
+        startY: finalY + 4,
+        head: [['Certificate Name', 'Activity Type', 'Group', 'Status', 'Points']],
+        body: allCerts,
+        theme: 'striped',
+        headStyles: { fillColor: [55, 65, 81] }
+      });
+    }
+
+    doc.save(`${student.regNo}_Activity_Report.pdf`);
+  };
+
+  const generateBatchReport = () => {
+    const doc = new jsPDF();
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(31, 41, 55);
+    doc.text("Class Performance Report", 14, 22);
+
+    doc.setFontSize(11);
+    doc.setTextColor(107, 114, 128);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    doc.text(`Faculty: ${faculty.name} (${faculty.department})`, 14, 36);
+
+    let finalY = 46;
+
+    assignedClasses.forEach((cls) => {
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(31, 41, 55);
+      doc.text(cls.className, 14, finalY);
+
+      const studentsInClass = cls.students.map(s => [
+        s.regNo,
+        s.name,
+        s.total,
+        s.capped,
+        `${Math.min(((s.capped || 0) / 120) * 100, 100).toFixed(1)}%`
+      ]);
+
+      autoTable(doc, {
+        startY: finalY + 6,
+        head: [['Reg No', 'Name', 'Total Points', 'Capped Points', 'Progress']],
+        body: studentsInClass,
+        theme: 'striped',
+        headStyles: { fillColor: [55, 65, 81] }
+      });
+
+      finalY = doc.lastAutoTable.finalY + 15;
+    });
+
+    doc.save(`Class_Report_${faculty.name.replace(/\s+/g, '_')}.pdf`);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -173,12 +277,11 @@ export default function FacultyDashboard() {
   const MyClassesTab = () => (
     <div className="space-y-4 animate-in">
       {/* Summary */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         {[
           { label: "Pending Requests", value: totalPending, color: "text-amber-600" },
           { label: "Low Activity", value: lowStudents, color: "text-red-600" },
           { label: "Total Students", value: allStudents.length, color: "text-gray-900" },
-          { label: "Classes Assigned", value: assignedClasses.length, color: "text-gray-900" },
         ].map((c) => (
           <div key={c.label} className="bg-white/40 backdrop-blur border border-white/60 shadow-inner rounded-2xl p-4">
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{c.label}</p>
@@ -369,7 +472,12 @@ export default function FacultyDashboard() {
   const ReportsTab = () => (
     <div className="space-y-4 animate-in">
       <div className="clay-card p-6">
-        <h2 className="text-base font-bold text-gray-900 mb-5">Class-wise Summary</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-bold text-gray-900">Class-wise Summary</h2>
+          <button onClick={generateBatchReport} className="clay-btn-dark px-4 py-2 text-sm flex items-center gap-2">
+            <Download size={16} /> Export All Students Report
+          </button>
+        </div>
         <div className="grid grid-cols-3 gap-4 mb-2">
           <div className="bg-white/40 backdrop-blur shadow-inner border border-white/60 rounded-xl p-4">
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Avg Points</p>
@@ -399,23 +507,26 @@ export default function FacultyDashboard() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {tabs.map(({ key, label, icon: Icon, badge }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm transition-all focus:outline-none ${activeTab === key ? "bg-white/50 text-gray-900 font-bold shadow-inner border border-white/60" : "text-gray-600 hover:bg-white/30 font-medium"
-                }`}
-            >
-              <Icon size={18} className={activeTab === key ? "text-gray-900" : "text-gray-500"} />
-              <span className="flex-1 text-left">{label}</span>
-              {badge > 0 && (
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${activeTab === key ? "bg-gray-900 text-white" : "bg-amber-100/50 text-amber-700 shadow-inner"
-                  }`}>
-                  {badge}
-                </span>
-              )}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm transition-all focus:outline-none ${activeTab === tab.key ? "bg-white/50 text-gray-900 font-bold shadow-inner border border-white/60" : "text-gray-600 hover:bg-white/30 font-medium"
+                  }`}
+              >
+                <Icon size={18} className={activeTab === tab.key ? "text-gray-900" : "text-gray-500"} />
+                <span className="flex-1 text-left">{tab.label}</span>
+                {tab.badge > 0 && (
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${activeTab === tab.key ? "bg-gray-900 text-white" : "bg-amber-100/50 text-amber-700 shadow-inner"
+                    }`}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="px-4 py-4 border-t border-white/30 bg-white/10 backdrop-blur-sm">
@@ -463,7 +574,10 @@ export default function FacultyDashboard() {
                 <h2 className="text-base font-bold text-gray-900">{selectedStudent.name}</h2>
                 <p className="text-xs font-semibold text-gray-500 mt-0.5">{selectedStudent.regNo}</p>
               </div>
-              <button onClick={() => setSelectedStudent(null)} className="text-gray-400 hover:text-gray-900 bg-white/50 shadow-inner rounded-full p-1"><X size={18} /></button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => generateStudentReport(selectedStudent, studentCerts)} className="text-blue-600 hover:text-blue-800 bg-white/50 shadow-inner rounded-full p-2"><Download size={16} /></button>
+                <button onClick={() => setSelectedStudent(null)} className="text-gray-400 hover:text-gray-900 bg-white/50 shadow-inner rounded-full p-2"><X size={16} /></button>
+              </div>
             </div>
             <div className="p-6 space-y-5">
               <div className="bg-white/40 backdrop-blur shadow-inner border border-white/60 rounded-xl p-4">
