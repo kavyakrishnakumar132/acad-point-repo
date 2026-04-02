@@ -205,34 +205,32 @@ router.post("/admin/register", async (req, res) => {
 });
 
 /* =========================
-   FORGOT PASSWORD
+   FORGOT PASSWORD (OTP)
 ========================= */
 router.post("/forgot-password/:role", async (req, res) => {
-  try {
-    const { role } = req.params;
-    const { id, email } = req.body;
+  const { role } = req.params;
+  const { id, email } = req.body;
+  let user;
 
-    let user;
+  try {
+
     if (role === "student") {
       user = await Student.findOne({ registerNumber: id });
-      if (!user || user.email !== email) {
-        return res.status(404).json({ message: "No account found with that ID and email." });
-      }
     } else if (role === "faculty") {
       user = await Faculty.findOne({ facultyId: id });
-      if (!user || user.email !== email) {
-        return res.status(404).json({ message: "No account found with that ID and email." });
-      }
     } else {
       return res.status(400).json({ message: "Invalid role" });
     }
 
-    const token = crypto.randomBytes(32).toString("hex");
-    user.resetPasswordToken = token;
-    user.resetPasswordExpires = Date.now() + 1000 * 60 * 30; // 30 min
-    await user.save();
+    if (!user || user.email !== email) {
+      return res.status(404).json({ message: "No account found with that ID and email." });
+    }
 
-    const resetLink = `http://localhost:5173/reset-password/${role}/${token}`;
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetPasswordToken = otp;
+    user.resetPasswordExpires = Date.now() + 1000 * 60 * 10; // 10 minutes
+    await user.save();
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -245,46 +243,89 @@ router.post("/forgot-password/:role", async (req, res) => {
     await transporter.sendMail({
       from: `"AcadPoint" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: "Password Reset Request",
+      subject: "Your Password Reset OTP",
       html: `
         <p>Hello ${user.name},</p>
-        <p>Click the link below to reset your password. This link expires in 30 minutes.</p>
-        <a href="${resetLink}">${resetLink}</a>
-        <p>If you didn't request this, ignore this email.</p>
+        <p>Your OTP for password reset is: <strong>${otp}</strong></p>
+        <p>This OTP is valid for 10 minutes. Please enter it on the reset password page.</p>
+        <p>If you didn't request this, please ignore this email.</p>
       `,
     });
 
-    res.json({ message: "Reset link sent to your email." });
+    res.json({ message: "An OTP has been sent to your email." });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Forgot Password Error:", err.message || err);
+    // MOCK OTP FOR LOCAL TESTING IF EMAIL FAILS
+    if (err.code === 'EAUTH' || err.responseCode === 535) {
+      console.log(`\n\n=== DEMO MODE ===\nEmail failed due to invalid credentials.\nYour OTP for ${email} is: ${user.resetPasswordToken}\n=================\n\n`);
+      return res.json({ message: "Email failed but OTP generated in server console for testing." });
+    }
+    res.status(500).json({ message: "Failed to send email. Please try again later." });
   }
 });
 
 /* =========================
-   RESET PASSWORD
+   VERIFY OTP
 ========================= */
-router.post("/reset-password/:role/:token", async (req, res) => {
+router.post("/verify-otp/:role", async (req, res) => {
   try {
-    const { role, token } = req.params;
-    const { password } = req.body;
+    const { role } = req.params;
+    const { id, email, otp } = req.body;
 
     let user;
-    const query = {
-      resetPasswordToken: token,
+    if (role === "student") {
+      user = await Student.findOne({ registerNumber: id, email });
+    } else if (role === "faculty") {
+      user = await Faculty.findOne({ facultyId: id, email });
+    } else {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: "No account found." });
+    }
+
+    if (user.resetPasswordToken !== otp) {
+      return res.status(400).json({ message: "Invalid OTP." });
+    }
+
+    if (Date.now() > user.resetPasswordExpires) {
+      return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+    }
+
+    res.json({ message: "OTP verified successfully." });
+  } catch (err) {
+    console.error("Verify OTP Error:", err);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+/* =========================
+   RESET PASSWORD (OTP)
+========================= */
+router.post("/reset-password-otp/:role", async (req, res) => {
+  try {
+    const { role } = req.params;
+    const { id, otp, password } = req.body;
+
+    let user;
+    let query = {
+      resetPasswordToken: otp,
       resetPasswordExpires: { $gt: Date.now() },
     };
 
     if (role === "student") {
+      query.registerNumber = id;
       user = await Student.findOne(query);
     } else if (role === "faculty") {
+      query.facultyId = id;
       user = await Faculty.findOne(query);
     } else {
       return res.status(400).json({ message: "Invalid role" });
     }
 
     if (!user) {
-      return res.status(400).json({ message: "Token is invalid or has expired." });
+      return res.status(400).json({ message: "OTP is invalid or has expired." });
     }
 
     user.password = await bcrypt.hash(password, 10);
@@ -292,10 +333,10 @@ router.post("/reset-password/:role/:token", async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    res.json({ message: "Password reset successful." });
+    res.json({ message: "Password reset successfully." });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Reset Password Error:", err);
+    res.status(500).json({ message: "Internal server error." });
   }
 });
 

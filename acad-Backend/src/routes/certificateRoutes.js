@@ -120,26 +120,8 @@ router.put("/review/:id", async (req, res) => {
         if (status === "Approved") {
             const assignedPoints = Number(points);
 
-            if (!assignedPoints || assignedPoints < 1 || assignedPoints > 40) {
-                return res.status(400).json({ error: "Points must be between 1 and 40." });
-            }
-
-            // Sum all already-approved points for this student in the same group (excluding this cert)
-            const existingApproved = await Certificate.find({
-                studentId: cert.studentId,
-                group: cert.group,
-                status: "Approved",
-                _id: { $ne: cert._id }
-            });
-
-            const alreadyEarned = existingApproved.reduce((sum, c) => sum + (c.points || 0), 0);
-            const GROUP_MAX = 40;
-
-            if (alreadyEarned + assignedPoints > GROUP_MAX) {
-                const remaining = GROUP_MAX - alreadyEarned;
-                return res.status(400).json({
-                    error: `Cannot exceed ${GROUP_MAX} points for ${cert.group}. Student has already earned ${alreadyEarned} points in this group. You can assign at most ${remaining} more point(s).`
-                });
+            if (!assignedPoints || assignedPoints < 1) {
+                return res.status(400).json({ error: "Points must be at least 1." });
             }
         }
 

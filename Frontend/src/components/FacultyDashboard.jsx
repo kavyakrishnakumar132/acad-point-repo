@@ -84,8 +84,8 @@ export default function FacultyDashboard() {
   const submitReview = async (certId, status) => {
     const input = reviewInput[certId] || {};
     // Validation
-    if (status === "Approved" && (!input.points || input.points < 1 || input.points > 40)) {
-      showToast("Please assign valid points (1-40) before approving.", "warning");
+    if (status === "Approved" && (!input.points || Number(input.points) < 1)) {
+      showToast("Please assign valid points before approving.", "warning");
       return;
     }
 
@@ -123,6 +123,7 @@ export default function FacultyDashboard() {
     acc[key].push({
       regNo: st.registerNumber,
       name: st.name,
+      semester: st.semester,
       total: st.points || 0,
       capped: st.cappedPoints || 0,
       groupI: 0,
@@ -422,12 +423,11 @@ export default function FacultyDashboard() {
             {/* Assign Points + Remarks */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5">Assign Points * <span className="normal-case text-gray-400">(max 40/group)</span></label>
+                <label className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5">Assign Points *</label>
                 <input
                   type="number"
                   placeholder="e.g. 10"
                   min="1"
-                  max="40"
                   value={inputStr.points || ""}
                   onChange={(e) => handleReviewInput(req._id, "points", e.target.value)}
                   className="w-full clay-input"
